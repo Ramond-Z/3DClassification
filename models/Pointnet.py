@@ -26,11 +26,13 @@ class T_NET(nn.Module):
             debug(),
             nn.Linear(256, output_shape**2)
         )
+        nn.init.constant_(self.layers[-1].weight, 0)
+        nn.init.constant_(self.layers[-1].bias, 0)
 
     def forward(self, x: torch.tensor):
         # x = x.transpose(1, 2)
         x = self.layers(x.transpose(1, 2)).reshape(-1, self.output_shape, self.output_shape)
-        return x + torch.eye(self.output_shape)
+        return x + torch.eye(self.output_shape, device=x.device)
 
 
 class PointNet(nn.Module):
@@ -65,7 +67,9 @@ class PointNetClassification(nn.Module):
         self.PointNet = PointNet()
         self.classification_head = nn.Sequential(
             MLP(1024, 512),
+            nn.Dropout(.7),
             MLP(512, 256),
+            nn.Dropout(.7),
             MLP(256, n_classes),
         )
         self.loss_fn = nn.CrossEntropyLoss()
@@ -76,11 +80,12 @@ class PointNetClassification(nn.Module):
         x = self.classification_head(x.squeeze())
         return x, t2
 
-    def get_loss(self, data, label):
+    def get_loss_and_acc(self, data, label):
         predicted, transformation = self.forward(data)
         classification_loss = self.loss_fn(F.softmax(predicted, dim=-1), label)
-        regulation_loss = torch.norm(torch.eye(64) - transformation * transformation.transpose(1, 2), p=2)
-        return classification_loss + regulation_loss * self.regulation_weight
+        acc = (torch.argmax(predicted, -1) == label).sum()
+        regulation_loss = torch.norm(torch.eye(64, device=transformation.device) - torch.matmul(transformation, transformation.transpose(1, 2)), p=2)
+        return classification_loss + regulation_loss * self.regulation_weight, acc
 
 
 if __name__ == '__main__':

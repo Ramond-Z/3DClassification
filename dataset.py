@@ -34,30 +34,30 @@ class ModelNet40(Dataset):
 
 
 def rotation(batch_data):
-    rotated_data = np.zeros(batch_data.shape, dtype=np.float32)
+    rotated_data = torch.zeros_like(batch_data)
     for k in range(batch_data.shape[0]):
         rotation_angle = np.random.uniform() * 2 * np.pi
         cosval = np.cos(rotation_angle)
         sinval = np.sin(rotation_angle)
-        rotation_matrix = np.array([[cosval, 0, sinval],
+        rotation_matrix = torch.asarray([[cosval, 0, sinval],
                                     [0, 1, 0],
-                                    [-sinval, 0, cosval]])
+                                    [-sinval, 0, cosval]], dtype=batch_data.dtype, device=batch_data.device)
         shape_pc = batch_data[k, ...]
-        rotated_data[k, ...] = np.dot(shape_pc.reshape((-1, 3)), rotation_matrix)
+        rotated_data[k, ...] = torch.matmul(shape_pc, rotation_matrix)
     return rotated_data
 
 
 def jitter(batch_data, sigma=.01, clip=.05):
     B, N, C = batch_data.shape
     assert (clip > 0)
-    jittered_data = np.clip(sigma * np.random.randn(B, N, C), -clip, clip)
+    jittered_data = torch.clip(sigma * torch.randn_like(batch_data), -clip, clip)
     jittered_data += batch_data
     return jittered_data
 
 
 def augmentation(batch_data):
     data, label = batch_data
-    return (from_numpy(jitter(rotation(data))).to(torch.float32), label.squeeze())
+    return ((jitter(rotation(data))).to(torch.float32), label.squeeze())
 
 
 if __name__ == '__main__':
