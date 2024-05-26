@@ -13,17 +13,11 @@ class T_NET(nn.Module):
         self.output_shape = output_shape
         self.layers = nn.Sequential(
             SharedMLP(input_channel, 64),
-            debug(),
             SharedMLP(64, 128),
-            debug(),
             SharedMLP(128, 1024),
-            debug(),
             nn.AdaptiveMaxPool1d(1),
-            debug(),
             MLP(1024, 512),
-            debug(),
             MLP(512, 256),
-            debug(),
             nn.Linear(256, output_shape**2),
         )
         nn.init.constant_(self.layers[-1].weight, 0)

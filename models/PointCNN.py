@@ -66,12 +66,12 @@ class PointCNNLayer(nn.Module):
 class PointCNN(nn.Module):
     def __init__(self) -> None:
         super().__init__()
-        self.layers = [
+        self.layers = nn.ModuleList([
             PointCNNLayer(0, 48, 8, 1024, 1, lifting_feature=16),
             PointCNNLayer(48, 96, 12, 384, 2),
             PointCNNLayer(96, 192, 16, 128, 2),
             PointCNNLayer(192, 384, 16, 128, 3)
-        ]
+        ])
 
     def forward(self, points):
         features = None
@@ -86,12 +86,9 @@ class PointCNNClassification(nn.Module):
         self.backbone = PointCNN()
         self.classification_head = nn.Sequential(
             SharedMLP(384, 256),
-            debug(),
             SharedMLP(256, 128),
-            debug(),
             nn.Dropout(),
             nn.Conv1d(128, n_category, 1),
-            debug(),
         )
         self.avg_pooling = nn.AdaptiveAvgPool1d(n_category)
         self.loss_fn = nn.CrossEntropyLoss()
@@ -105,7 +102,7 @@ class PointCNNClassification(nn.Module):
         logits = self.forward(points)
         loss = self.loss_fn(F.softmax(logits, dim=-1), label)
         acc = (torch.argmax(logits, -1) == label).sum()
-        return loss, 0, acc
+        return loss, torch.asarray([0], device=loss.device), acc
 
 
 def knn(point_cloud, k, include_oneself=False):

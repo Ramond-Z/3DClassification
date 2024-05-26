@@ -1,4 +1,4 @@
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, random_split
 from torch import from_numpy
 
 import torch
@@ -31,6 +31,18 @@ class ModelNet40(Dataset):
 
     def __getitem__(self, idx):
         return (self.data[idx], self.label[idx])
+
+
+def prepare_dataset(root, validation_split=.1):
+    full_dataset = ModelNet40(root)
+    test_set = ModelNet40(root, 'test')
+    if validation_split > 0:
+        train_length = len(full_dataset) * (1 - validation_split)
+        validation_length = len(full_dataset) - train_length
+        train_set, validation_set = random_split(full_dataset, [train_length, validation_length])
+        return train_set, validation_set, test_set
+    else:
+        return full_dataset, None, test_set
 
 
 def rotation(batch_data):
