@@ -4,7 +4,7 @@ from models.config import get_model
 from dataset import prepare_dataset, augmentation
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from torch import no_grad
 from datetime import datetime
 import argparse
@@ -17,7 +17,7 @@ def train(opt):
     test_loader = DataLoader(test_set, opt.bs)
     model = get_model(opt.model)
     optimizer = AdamW(model.parameters(), opt.lr)
-    scheduler = StepLR(optimizer, 20, .5)
+    scheduler = CosineAnnealingWarmRestarts(optimizer, 40, 2)
     project = ProjectConfiguration('.', './log')
     accelerator = Accelerator(log_with='tensorboard', project_config=project)
     accelerator.init_trackers(opt.experience_name)
@@ -46,19 +46,21 @@ def train(opt):
             for batch in validation_loader:
                 data, label = batch
                 label = label.squeeze()
-                _, _, acc = model.get_loss_and_acc(data, label)
+                acc = model.test(data, label)
                 validation_acc += acc
-        accelerator.log({'loss': avg_loss / len(training_loader),'cls_loss': avg_classification_loss / len(training_loader), 'reg_loss': regulation_loss / len(training_loader), 'train_acc': total_acc / len(training_set), 'validation_acc': validation_acc / len(validation_set)}, step=epoch)
-        print('epoch: {}, loss: {}, acc: {}, validation acc: {}'.format(epoch, avg_loss / len(training_loader), total_acc / len(training_set), validation_acc / len(validation_set)))
-    with no_grad():
-        test_acc = 0
-        for batch in test_loader:
-            data, label = batch
-            label = label.squeeze()
-            _, _, acc = model.get_loss_and_acc(data, label)
-            test_acc += acc
-        accelerator.log({'test acc', test_acc / len(test_set)})
-        print('test_acc: {}'.format(test_acc / len(test_set)))
+        accelerator.log({'loss': avg_loss / len(training_loader), 'cls_loss': avg_classification_loss / len(training_loader), 'reg_loss': regulation_loss / len(training_loader), 'train_acc': total_acc / len(training_set), 'validation_acc': validation_acc / len(validation_set)}, step=epoch)
+        if accelerator.is_main_process:
+            print('epoch: {}, loss: {}, acc: {}, validation acc: {}'.format(epoch, avg_loss / len(training_loader), total_acc / len(training_set), validation_acc / len(validation_set)))
+    if accelerator.is_main_process:
+        with no_grad():
+            test_acc = 0
+            for batch in test_loader:
+                data, label = batch
+                label = label.squeeze()
+                acc = model.test(data, label)
+                test_acc += acc
+            accelerator.log({'test acc': test_acc / len(test_set)})
+            print('test_acc: {}'.format(test_acc / len(test_set)))
     accelerator.save_state('{}/{}'.format(opt.ckpt_dir, opt.experience_name))
     accelerator.end_training()
 

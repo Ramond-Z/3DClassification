@@ -81,6 +81,11 @@ class PointNetClassification(nn.Module):
         regulation_loss = torch.norm(torch.eye(64, device=transformation.device) - torch.matmul(transformation, transformation.transpose(1, 2)), p=2, dim=(1, 2)).mean()
         return classification_loss, regulation_loss, acc
 
+    def test(self, data, label):
+        predicted, _ = self.forward(data)
+        acc = (torch.argmax(predicted, -1) == label).sum()
+        return acc
+
 
 if __name__ == '__main__':
     model = PointNetClassification(40)

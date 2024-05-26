@@ -1,31 +1,56 @@
-# 几何计算前沿 第三次作业
+# 3D Classification
 
-DDL: 2024.5.26
+This repository contains a PyTorch implementation of several 3D classification algorithms, including PointNet and PointCNN.
 
-### 任务
+## Requirements
 
-请根据自身的计算资源，任意选择两个3D Classification的论文，复现其在ModelNet40数据集上的分类结果。
+To install the required packages, you can run:
 
-报告的内容：
+```bash
+pip install torch h5py accelerate numpy
+```
 
-- 简要概括两篇论文的方法，可以附上简短的核心代码
-- 展示训练过程中模型loss和accuracy的曲线
+or simply run:
 
-### 评分标准
+```bash
+pip install -r requirements.txt
+```
 
-算法介绍：5分
+## Dataset
 
-算法代码运行正常：5分
+We conducted experiments on the ModelNet40 dataset, which is available at [ModelNet40](https://shapenet.cs.stanford.edu/media/modelnet40_ply_hdf5_2048.zip). A bash script for preparing the dataset is also provided. To prepare the dataset, please run:
 
-复现结果：5分
+```bash
+sh prepare_dataset.sh
+```
 
-### 参考资料
+## Training
 
-- OCNN: https://github.com/octree-nn/ocnn-pytorch.git
-- PointNet: https://github.com/charlesq34/pointnet
-- PointNet++: https://github.com/charlesq34/pointnet2
-- PointCNN: https://github.com/yangyanli/PointCNN
-- PointConv: https://github.com/DylanWusee/pointconv
-- Point Transformer: https://github.com/POSTECH-CVLab/point-transformer
-- 其他感兴趣的方法
+We utilize Huggingface's `accelerate` library for training. Notice that we **do not** support distributed training yet. To configure the training environment, please run:
 
+```bash
+accelerate config
+```
+
+After configuration, you can launch the training with:
+
+```bash
+accelerate launch train.py <args>
+```
+
+## Directory Structure
+
+The directory structure of this repository is as follows:
+
+```
+3D-Classification/
+├── data/                   # Directory for storing the dataset
+├── models/                 # Directory containing model definitions
+├── train.py                # Training script
+├── prepare_dataset.sh      # Script to prepare the dataset
+└── README.md               # This README file
+```
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for details.

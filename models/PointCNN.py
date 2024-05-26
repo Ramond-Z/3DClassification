@@ -56,7 +56,7 @@ class PointCNNLayer(nn.Module):
         rep_idx = torch.randperm(n)[:self.num_representitives]
         representitive_pos = points[:, rep_idx]
         neighbour_idx = nn_idx[:, rep_idx, :]
-        batch_indices = torch.arange(b).view(b, 1, 1).expand(-1, self.num_representitives, self.num_neighbours)
+        batch_indices = torch.arange(b).view(b, 1, 1).expand(-1, min(self.num_representitives, n), self.num_neighbours)
         neighbour_pos = points[batch_indices, neighbour_idx]
         neighbour_features = features[batch_indices, neighbour_idx] if features is not None else None
         representitives, new_features = self.conv(neighbour_pos, neighbour_features, representitive_pos)
@@ -67,13 +67,17 @@ class PointCNN(nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.layers = nn.ModuleList([
-            PointCNNLayer(0, 48, 8, 1024, 1, lifting_feature=16),
+            PointCNNLayer(0, 48, 8, 1024, 1, lifting_feature=24),
             PointCNNLayer(48, 96, 12, 384, 2),
             PointCNNLayer(96, 192, 16, 128, 2),
-            PointCNNLayer(192, 384, 16, 128, 3)
+            PointCNNLayer(192, 384, 16, 128, 3),
         ])
 
-    def forward(self, points):
+    def forward(self, points, test=False):
+        n = int(torch.clamp(torch.normal(1024, 1024/8, size=(1,)), 1, 1023).item()) if not test else 1024
+        # print(n)
+        idx = torch.randperm(2048)[:n]
+        points = points[:, idx, :]
         features = None
         for layer in self.layers:
             points, features = layer(points, features)
@@ -93,8 +97,8 @@ class PointCNNClassification(nn.Module):
         self.avg_pooling = nn.AdaptiveAvgPool1d(n_category)
         self.loss_fn = nn.CrossEntropyLoss()
 
-    def forward(self, points):
-        _, features = self.backbone(points)
+    def forward(self, points, test=False):
+        _, features = self.backbone(points, test)
         logits = torch.mean(self.classification_head(features.transpose(1, 2)), -1)
         return logits
 
@@ -103,6 +107,11 @@ class PointCNNClassification(nn.Module):
         loss = self.loss_fn(F.softmax(logits, dim=-1), label)
         acc = (torch.argmax(logits, -1) == label).sum()
         return loss, torch.asarray([0], device=loss.device), acc
+
+    def test(self, points, label):
+        logits = self.forward(points, test=True)
+        acc = (torch.argmax(logits, -1) == label).sum()
+        return acc
 
 
 def knn(point_cloud, k, include_oneself=False):

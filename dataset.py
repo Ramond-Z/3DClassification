@@ -1,5 +1,5 @@
 from torch.utils.data import Dataset, DataLoader, random_split
-from torch import from_numpy
+
 
 import torch
 import numpy as np
@@ -37,8 +37,8 @@ def prepare_dataset(root, validation_split=.1):
     full_dataset = ModelNet40(root)
     test_set = ModelNet40(root, 'test')
     if validation_split > 0:
-        train_length = len(full_dataset) * (1 - validation_split)
-        validation_length = len(full_dataset) - train_length
+        train_length = int(len(full_dataset) * (1 - validation_split))
+        validation_length = int(len(full_dataset) - train_length)
         train_set, validation_set = random_split(full_dataset, [train_length, validation_length])
         return train_set, validation_set, test_set
     else:
@@ -60,7 +60,6 @@ def rotation(batch_data):
 
 
 def jitter(batch_data, sigma=.01, clip=.05):
-    B, N, C = batch_data.shape
     assert (clip > 0)
     jittered_data = torch.clip(sigma * torch.randn_like(batch_data), -clip, clip)
     jittered_data += batch_data
